@@ -1,11 +1,13 @@
 flask==3.1.1
 gunicorn
 python-dotenv
-
+ 
 langchain==0.3.26
 langchain-openai==0.3.24
 langchain-community
-
+langchain-groq
+langchain-pinecone
+ 
 pinecone
 pypdf
 sentence-transformers

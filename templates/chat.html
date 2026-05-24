@@ -1,451 +1,1207 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Medical Chatbot</title>
-
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{
+            height:100vh;
+            background:linear-gradient(135deg,#0f172a,#111827,#1e293b);
+            font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+            overflow:hidden;
         }
+        .app-shell{display:flex;height:100vh;width:100%;}
 
-        body {
-            height: 100vh;
-            background: linear-gradient(135deg, #0f172a, #111827, #1e293b);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
+        /* ══ SIDEBAR ══ */
+        .sidebar{
+            width:280px;min-width:280px;
+            background:rgba(255,255,255,0.04);
+            border-right:1px solid rgba(255,255,255,0.08);
+            display:flex;flex-direction:column;
+            transition:transform .3s ease;z-index:10;
         }
-
-        .chat-wrapper {
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+        .sidebar.collapsed{transform:translateX(-280px);margin-left:-280px;}
+        .sidebar-header{
+            padding:16px 14px 12px;
+            border-bottom:1px solid rgba(255,255,255,0.08);
+            display:flex;align-items:center;justify-content:space-between;
         }
-
-        .chat-card {
-            width: 100%;
-            max-width: 950px;
-            height: 95vh;
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 28px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        .sidebar-header span{color:#e2e8f0;font-size:14px;font-weight:600;}
+        .sidebar-body{flex:1;overflow-y:auto;padding:10px 8px;}
+        .sidebar-body::-webkit-scrollbar{width:4px;}
+        .sidebar-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:10px;}
+        .history-item{
+            padding:10px;border-radius:10px;cursor:pointer;
+            margin-bottom:6px;border:1px solid transparent;transition:.2s;
         }
-
-        .chat-header {
-            padding: 18px 24px;
-            background: rgba(255, 255, 255, 0.04);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        .history-item:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.1);}
+        .history-item .q{color:#e2e8f0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+        .history-item .t{color:#6b7280;font-size:11px;margin-top:3px;}
+        .sidebar-footer{padding:12px 10px;border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:8px;}
+        .clear-btn{
+            flex:1;padding:8px;border-radius:10px;
+            background:rgba(239,68,68,0.12);color:#f87171;
+            border:1px solid rgba(239,68,68,0.2);font-size:13px;cursor:pointer;transition:.2s;
         }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 14px;
+        .clear-btn:hover{background:rgba(239,68,68,0.22);}
+        .pdf-btn{
+            flex:1;padding:8px;border-radius:10px;
+            background:rgba(99,102,241,0.12);color:#a5b4fc;
+            border:1px solid rgba(99,102,241,0.25);font-size:13px;cursor:pointer;transition:.2s;
         }
+        .pdf-btn:hover{background:rgba(99,102,241,0.22);}
 
-        .bot-avatar {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #22c55e;
-            padding: 4px;
-            background: #fff;
+        /* ══ MAIN ══ */
+        .chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+        .chat-header{
+            padding:12px 18px;
+            background:rgba(255,255,255,0.04);
+            border-bottom:1px solid rgba(255,255,255,0.08);
+            display:flex;align-items:center;justify-content:space-between;gap:10px;
         }
-
-        .header-info h4 {
-            color: #fff;
-            margin: 0;
-            font-size: 20px;
-            font-weight: 700;
+        .header-left{display:flex;align-items:center;gap:10px;}
+        .header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .icon-btn{
+            width:34px;height:34px;border-radius:10px;border:none;
+            background:rgba(255,255,255,0.08);color:#9ca3af;
+            font-size:15px;cursor:pointer;transition:.2s;
+            display:flex;align-items:center;justify-content:center;
         }
-
-        .header-info p {
-            margin: 0;
-            color: #9ca3af;
-            font-size: 14px;
+        .icon-btn:hover{background:rgba(255,255,255,0.15);color:#fff;}
+        .bot-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid #22c55e;padding:3px;background:#fff;}
+        .header-info h4{color:#fff;margin:0;font-size:17px;font-weight:700;}
+        .header-info p{margin:0;color:#9ca3af;font-size:12px;}
+        .status{display:flex;align-items:center;gap:6px;color:#d1fae5;font-size:13px;}
+        .status-dot{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;}
+        .fs-controls{display:flex;align-items:center;gap:4px;}
+        .fs-btn{
+            width:28px;height:28px;border-radius:8px;border:none;
+            background:rgba(255,255,255,0.08);color:#9ca3af;
+            font-size:12px;cursor:pointer;transition:.2s;
+            display:flex;align-items:center;justify-content:center;font-weight:700;
         }
+        .fs-btn:hover{background:rgba(255,255,255,0.16);color:#fff;}
+        .fs-label{color:#6b7280;font-size:11px;min-width:28px;text-align:center;}
 
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #d1fae5;
-            font-size: 14px;
+        /* ══ RATE LIMIT BAR ══ */
+        .rate-bar{
+            padding:4px 18px;
+            background:rgba(255,255,255,0.03);
+            border-bottom:1px solid rgba(255,255,255,0.06);
+            display:flex;align-items:center;gap:8px;
         }
+        .rate-label{color:#6b7280;font-size:11px;}
+        .rate-track{flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
+        .rate-fill{height:100%;background:#22c55e;border-radius:4px;transition:width .4s ease;}
+        .rate-fill.warn{background:#f59e0b;}
+        .rate-fill.danger{background:#ef4444;}
 
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 10px #22c55e;
+        /* ══ CHAT BODY ══ */
+        .chat-body{flex:1;overflow-y:auto;padding:18px 14px;scroll-behavior:smooth;}
+        .chat-body::-webkit-scrollbar{width:5px;}
+        .chat-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:20px;}
+        .message-row{display:flex;margin-bottom:15px;width:100%;}
+        .message-row.user{justify-content:flex-end;}
+        .message-row.bot{justify-content:flex-start;}
+        .message-box{
+            max-width:78%;padding:13px 16px;border-radius:20px;
+            word-wrap:break-word;line-height:1.7;font-size:15px;
         }
-
-        .chat-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px 18px;
-            scroll-behavior: smooth;
+        .user .message-box{
+            background:linear-gradient(135deg,#2563eb,#3b82f6);
+            color:#fff;border-bottom-right-radius:5px;
+            box-shadow:0 6px 18px rgba(37,99,235,.3);
         }
-
-        .chat-body::-webkit-scrollbar {
-            width: 6px;
+        .bot .message-box{
+            background:rgba(255,255,255,0.08);color:#f3f4f6;
+            border:1px solid rgba(255,255,255,0.08);border-bottom-left-radius:5px;
         }
+        .bot .message-box ul{margin:8px 0 4px 0;padding-left:20px;}
+        .bot .message-box ul li{margin-bottom:5px;color:#e2e8f0;}
+        .bot .message-box .section-title{color:#86efac;font-weight:700;margin:10px 0 4px 0;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;}
+        .bot .message-box .summary-line{color:#fff;font-weight:600;margin-bottom:8px;}
+        .message-time{display:block;margin-top:5px;font-size:11px;opacity:.65;text-align:right;}
 
-        .chat-body::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.15);
-            border-radius: 20px;
+        /* feedback + actions */
+        .feedback-row{display:flex;align-items:center;gap:7px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);flex-wrap:wrap;}
+        .fb-btn{
+            background:none;border:1px solid rgba(255,255,255,0.12);
+            border-radius:8px;padding:3px 10px;cursor:pointer;
+            color:#9ca3af;font-size:12px;transition:.2s;
         }
-
-        .message-row {
-            display: flex;
-            margin-bottom: 18px;
-            width: 100%;
+        .fb-btn:hover{background:rgba(255,255,255,0.08);color:#fff;}
+        .fb-btn.voted-up{background:rgba(34,197,94,.15);color:#4ade80;border-color:#4ade80;}
+        .fb-btn.voted-down{background:rgba(239,68,68,.15);color:#f87171;border-color:#f87171;}
+        .action-btns{display:flex;gap:6px;margin-left:auto;}
+        .act-btn{
+            background:none;border:1px solid rgba(255,255,255,0.12);
+            border-radius:8px;padding:3px 9px;cursor:pointer;
+            color:#9ca3af;font-size:12px;transition:.2s;
         }
+        .act-btn:hover{background:rgba(255,255,255,0.08);color:#fff;}
+        .act-btn.speaking{color:#38bdf8;border-color:#38bdf8;}
 
-        .message-row.user {
-            justify-content: flex-end;
+        /* suggestions */
+        .suggestions-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+        .suggestion-chip{
+            background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);
+            border-radius:20px;padding:4px 11px;font-size:12px;color:#4ade80;cursor:pointer;transition:.2s;
         }
+        .suggestion-chip:hover{background:rgba(34,197,94,.2);}
 
-        .message-row.bot {
-            justify-content: flex-start;
+        /* disease image */
+        .disease-image-wrap{margin-top:10px;text-align:center;}
+        .disease-image-wrap img{max-width:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.12);max-height:180px;object-fit:cover;}
+        .disease-image-wrap .img-caption{font-size:11px;color:#9ca3af;margin-top:4px;}
+        .disease-image-wrap .img-loading{font-size:12px;color:#6b7280;padding:6px 0;}
+
+        /* ══ EMERGENCY MODAL ══ */
+        .emergency-overlay{
+            position:fixed;inset:0;background:rgba(0,0,0,0.75);
+            z-index:1000;display:none;align-items:center;justify-content:center;
         }
-
-        .message-box {
-            max-width: 78%;
-            padding: 14px 18px;
-            border-radius: 22px;
-            position: relative;
-            word-wrap: break-word;
-            line-height: 1.6;
-            font-size: 15px;
+        .emergency-overlay.show{display:flex;}
+        .emergency-modal{
+            background:#1a0a0a;border:2px solid #ef4444;
+            border-radius:20px;padding:28px;max-width:420px;width:90%;
+            text-align:center;animation:shake .3s ease;
         }
-
-        .user .message-box {
-            background: linear-gradient(135deg, #2563eb, #3b82f6);
-            color: white;
-            border-bottom-right-radius: 6px;
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+        .emergency-modal .em-icon{font-size:48px;margin-bottom:12px;}
+        .emergency-modal h3{color:#ef4444;font-size:20px;font-weight:700;margin-bottom:8px;}
+        .emergency-modal p{color:#fca5a5;font-size:14px;margin-bottom:16px;line-height:1.6;}
+        .em-numbers{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;}
+        .em-call-btn{
+            padding:10px 20px;border-radius:12px;border:none;
+            background:#ef4444;color:#fff;font-size:16px;font-weight:700;
+            cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
+            transition:.2s;
         }
-
-        .bot .message-box {
-            background: rgba(255,255,255,0.08);
-            color: #f3f4f6;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-bottom-left-radius: 6px;
+        .em-call-btn:hover{background:#dc2626;color:#fff;text-decoration:none;}
+        .em-dismiss{
+            background:none;border:1px solid rgba(255,255,255,0.2);
+            color:#9ca3af;padding:8px 20px;border-radius:10px;
+            cursor:pointer;font-size:13px;transition:.2s;
         }
+        .em-dismiss:hover{border-color:#fff;color:#fff;}
 
-        .message-time {
-            display: block;
-            margin-top: 6px;
-            font-size: 11px;
-            opacity: 0.7;
-            text-align: right;
+        /* ══ EMERGENCY CHAT CARD ══ */
+        .emergency-card{
+            margin:10px 0;padding:14px 16px;
+            background:rgba(239,68,68,0.12);
+            border:1px solid rgba(239,68,68,0.4);
+            border-radius:14px;
         }
-
-        .chat-footer {
-            padding: 16px;
-            background: rgba(255,255,255,0.04);
-            border-top: 1px solid rgba(255,255,255,0.08);
+        .emergency-card .ec-title{color:#f87171;font-size:14px;font-weight:700;margin-bottom:8px;}
+        .emergency-card .ec-numbers{display:flex;gap:8px;flex-wrap:wrap;}
+        .ec-call{
+            padding:6px 14px;border-radius:10px;
+            background:rgba(239,68,68,0.2);color:#fca5a5;
+            border:1px solid rgba(239,68,68,0.3);
+            font-size:13px;font-weight:600;cursor:pointer;
+            text-decoration:none;transition:.2s;
         }
+        .ec-call:hover{background:rgba(239,68,68,0.35);color:#fff;text-decoration:none;}
 
-        .message-form {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        /* ══ SYMPTOM CHECKER PANEL ══ */
+        .sym-panel{
+            position:fixed;right:0;top:0;height:100vh;
+            width:360px;background:#0f1929;
+            border-left:1px solid rgba(255,255,255,0.1);
+            display:flex;flex-direction:column;
+            transform:translateX(360px);transition:transform .35s ease;
+            z-index:200;
         }
-
-        .message-input {
-            flex: 1;
-            border: none;
-            outline: none;
-            padding: 16px 20px;
-            border-radius: 18px;
-            background: rgba(255,255,255,0.08);
-            color: white;
-            font-size: 15px;
+        .sym-panel.open{transform:translateX(0);}
+        .sym-header{
+            padding:16px;border-bottom:1px solid rgba(255,255,255,0.08);
+            display:flex;align-items:center;justify-content:space-between;
         }
+        .sym-header h5{color:#fff;margin:0;font-size:16px;font-weight:700;}
+        .sym-body{flex:1;overflow-y:auto;padding:14px;}
+        .sym-body::-webkit-scrollbar{width:4px;}
+        .sym-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:10px;}
 
-        .message-input::placeholder {
-            color: #9ca3af;
+        /* tabs */
+        .sym-tabs{display:flex;gap:6px;margin-bottom:14px;}
+        .sym-tab{
+            flex:1;padding:7px;border-radius:10px;border:none;
+            background:rgba(255,255,255,0.06);color:#9ca3af;
+            font-size:13px;cursor:pointer;transition:.2s;
         }
+        .sym-tab.active{background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3);}
 
-        .send-btn {
-            width: 56px;
-            height: 56px;
-            border-radius: 18px;
-            border: none;
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            transition: 0.3s ease;
-            flex-shrink: 0;
+        /* tab panels */
+        .sym-tabpanel{display:none;}
+        .sym-tabpanel.active{display:block;}
+
+        /* type mode */
+        .sym-type-input{
+            width:100%;background:rgba(255,255,255,0.07);
+            border:1px solid rgba(255,255,255,0.12);border-radius:12px;
+            color:#fff;padding:10px 14px;font-size:14px;resize:none;
+            outline:none;line-height:1.5;
         }
+        .sym-type-input::placeholder{color:#6b7280;}
 
-        .send-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 20px rgba(34,197,94,0.35);
+        /* checkbox mode */
+        .sym-search{
+            width:100%;background:rgba(255,255,255,0.07);
+            border:1px solid rgba(255,255,255,0.1);border-radius:10px;
+            color:#fff;padding:8px 12px;font-size:13px;outline:none;margin-bottom:10px;
         }
-
-        .typing {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
+        .sym-search::placeholder{color:#6b7280;}
+        .sym-checkbox-grid{display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow-y:auto;}
+        .sym-chip{
+            padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;
+            background:rgba(255,255,255,0.06);color:#9ca3af;
+            border:1px solid rgba(255,255,255,0.1);transition:.2s;user-select:none;
         }
-
-        .typing span {
-            width: 8px;
-            height: 8px;
-            background: #fff;
-            border-radius: 50%;
-            animation: bounce 1.2s infinite;
+        .sym-chip.selected{background:rgba(34,197,94,0.15);color:#4ade80;border-color:rgba(34,197,94,0.4);}
+        .sym-selected-list{margin-top:10px;}
+        .sym-selected-label{color:#6b7280;font-size:12px;margin-bottom:6px;}
+        .sym-selected-tags{display:flex;flex-wrap:wrap;gap:5px;}
+        .sym-tag{
+            padding:3px 10px;border-radius:20px;font-size:12px;
+            background:rgba(34,197,94,0.15);color:#4ade80;
+            border:1px solid rgba(34,197,94,0.3);cursor:pointer;
         }
+        .sym-tag:hover{background:rgba(239,68,68,0.15);color:#f87171;border-color:rgba(239,68,68,0.3);}
 
-        .typing span:nth-child(2) {
-            animation-delay: 0.2s;
+        .sym-check-btn{
+            width:100%;margin-top:14px;padding:11px;border-radius:12px;border:none;
+            background:linear-gradient(135deg,#22c55e,#16a34a);
+            color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;
         }
+        .sym-check-btn:hover{opacity:.9;}
+        .sym-check-btn:disabled{opacity:.5;cursor:not-allowed;}
 
-        .typing span:nth-child(3) {
-            animation-delay: 0.4s;
+        /* results */
+        .sym-results{margin-top:14px;}
+        .sym-disease-card{
+            background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+            border-radius:12px;padding:12px;margin-bottom:10px;
         }
-
-        @keyframes bounce {
-            0%, 80%, 100% {
-                transform: scale(0);
-                opacity: 0.5;
-            }
-            40% {
-                transform: scale(1);
-                opacity: 1;
-            }
+        .sym-disease-card .dc-name{color:#e2e8f0;font-size:14px;font-weight:600;margin-bottom:4px;}
+        .sym-disease-card .dc-desc{color:#9ca3af;font-size:12px;margin-bottom:8px;line-height:1.5;}
+        .sev-badge{
+            display:inline-block;padding:2px 9px;border-radius:20px;
+            font-size:11px;font-weight:600;margin-bottom:8px;
         }
+        .sev-mild{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3);}
+        .sev-moderate{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);}
+        .sev-severe{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);}
+        .dc-actions{list-style:none;padding:0;margin:0;}
+        .dc-actions li{color:#d1fae5;font-size:12px;padding:2px 0;}
+        .dc-actions li::before{content:"→ ";color:#4ade80;}
+        .sym-loading{text-align:center;padding:20px;color:#6b7280;font-size:14px;}
 
-        @media screen and (max-width: 768px) {
-            html, body {
-                height: 100%;
-                overflow: hidden;
-                position: fixed;
-                width: 100%;
-            }
-
-            body {
-                overflow: hidden;
-            }
-
-            .chat-wrapper {
-                padding: 0;
-            }
-
-            .chat-card {
-                width: 100%;
-                height: 100vh;
-                border-radius: 0;
-                max-width: 100%;
-            }
-
-            .chat-header {
-                padding: 14px 16px;
-            }
-
-            .header-info h4 {
-                font-size: 17px;
-            }
-
-            .header-info p {
-                font-size: 12px;
-            }
-
-            .bot-avatar {
-                width: 44px;
-                height: 44px;
-            }
-
-            .message-box {
-                max-width: 88%;
-                font-size: 14px;
-                padding: 12px 14px;
-            }
-
-            .chat-body {
-                padding: 16px 12px;
-            }
-
-            .message-input {
-                font-size: 14px;
-                padding: 14px 16px;
-            }
-
-            .send-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 18px;
-            }
-
-            .status {
-                display: none;
-            }
+        /* ══ FOOTER ══ */
+        .chat-footer{
+            padding:12px 14px;
+            background:rgba(255,255,255,0.04);
+            border-top:1px solid rgba(255,255,255,0.08);
         }
+        .voice-hint{text-align:center;font-size:11px;color:#6b7280;margin-bottom:6px;}
+        .message-form{display:flex;align-items:center;gap:8px;}
+        .message-input{
+            flex:1;border:none;outline:none;padding:13px 16px;
+            border-radius:15px;background:rgba(255,255,255,0.08);
+            color:#fff;font-size:15px;
+        }
+        .message-input::placeholder{color:#9ca3af;}
+        .voice-btn{
+            width:46px;height:46px;border-radius:13px;border:none;
+            background:rgba(255,255,255,0.08);color:#9ca3af;
+            font-size:16px;cursor:pointer;transition:.3s;
+            flex-shrink:0;display:flex;align-items:center;justify-content:center;
+        }
+        .voice-btn:hover{background:rgba(255,255,255,0.15);color:#fff;}
+        .voice-btn.recording{background:rgba(239,68,68,.25)!important;color:#ef4444!important;animation:pulse-red 1s infinite;}
+        @keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4);}50%{box-shadow:0 0 0 8px rgba(239,68,68,0);}}
+        .send-btn{
+            width:46px;height:46px;border-radius:13px;border:none;
+            background:linear-gradient(135deg,#22c55e,#16a34a);
+            color:#fff;font-size:17px;cursor:pointer;transition:.3s;flex-shrink:0;
+        }
+        .send-btn:hover{transform:scale(1.06);box-shadow:0 6px 18px rgba(34,197,94,.35);}
+
+        .typing{display:inline-flex;align-items:center;gap:5px;}
+        .typing span{width:7px;height:7px;background:#fff;border-radius:50%;animation:bounce 1.2s infinite;}
+        .typing span:nth-child(2){animation-delay:.2s;}
+        .typing span:nth-child(3){animation-delay:.4s;}
+        @keyframes bounce{0%,80%,100%{transform:scale(0);opacity:.5;}40%{transform:scale(1);opacity:1;}}
+
+        @media(max-width:768px){
+
+    html,body{
+        height:100%;
+        width:100%;
+        overflow:hidden;
+        position:fixed;
+    }
+
+    .app-shell{
+        width:100%;
+        height:100%;
+        overflow:hidden;
+    }
+
+    /* SIDEBAR */
+    .sidebar{
+        position:fixed;
+        top:0;
+        left:0;
+        width:260px;
+        min-width:260px;
+        height:100vh;
+        z-index:9999;
+        background:#111827;
+        transform:translateX(0);
+    }
+
+    .sidebar.collapsed{
+        transform:translateX(-100%);
+        margin-left:0;
+    }
+
+    /* MAIN CHAT */
+    .chat-main{
+        width:100%;
+        height:100vh;
+        overflow:hidden;
+    }
+
+    .chat-header{
+        padding:10px;
+    }
+
+    .header-info h4{
+        font-size:15px;
+    }
+
+    .header-info p{
+        font-size:10px;
+    }
+
+    .bot-avatar{
+        width:38px;
+        height:38px;
+    }
+
+    .status{
+        display:none;
+    }
+
+    .fs-controls{
+        display:none;
+    }
+
+    /* CHAT BODY */
+    .chat-body{
+        padding:12px 10px 90px;
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .message-row{
+        margin-bottom:12px;
+    }
+
+    .message-box{
+        max-width:92%;
+        padding:12px;
+        font-size:14px;
+        line-height:1.5;
+        border-radius:16px;
+    }
+
+    /* FOOTER */
+    .chat-footer{
+        padding:10px;
+        position:fixed;
+        bottom:0;
+        left:0;
+        width:100%;
+        z-index:999;
+        background:#111827;
+        border-top:1px solid rgba(255,255,255,0.08);
+    }
+
+    .message-form{
+        gap:6px;
+        align-items:center;
+    }
+
+    .message-input{
+        height:46px;
+        padding:10px 14px;
+        font-size:14px;
+        border-radius:12px;
+    }
+
+    .voice-btn,
+    .send-btn{
+        width:44px;
+        height:44px;
+        border-radius:12px;
+        flex-shrink:0;
+    }
+
+    /* FIX INPUT HIDDEN ISSUE */
+    #messageArea{
+        width:100%;
+    }
+
+    /* SYMPTOM PANEL */
+    .sym-panel{
+        width:100%;
+        transform:translateX(100%);
+        z-index:10000;
+    }
+
+    .sym-panel.open{
+        transform:translateX(0);
+    }
+
+    /* HISTORY ITEMS */
+    .history-item{
+        padding:12px;
+    }
+
+    .history-item .q{
+        font-size:13px;
+    }
+
+    /* SUGGESTIONS */
+    .suggestions-row{
+        gap:5px;
+    }
+
+    .suggestion-chip{
+        font-size:11px;
+        padding:5px 10px;
+    }
+
+    /* FEEDBACK BUTTONS */
+    .feedback-row{
+        gap:5px;
+    }
+
+    .fb-btn,
+    .act-btn{
+        font-size:11px;
+        padding:4px 8px;
+    }
+
+    /* EMERGENCY MODAL */
+    .emergency-modal{
+        width:95%;
+        padding:20px;
+    }
+
+    .em-call-btn{
+        width:100%;
+        justify-content:center;
+    }
+
+}
     </style>
 </head>
-
 <body>
 
-<div class="chat-wrapper">
-    <div class="chat-card">
+<!-- ══ EMERGENCY MODAL ══ -->
+<div class="emergency-overlay" id="emergencyModal">
+    <div class="emergency-modal">
+        <div class="em-icon">🚨</div>
+        <h3>Emergency Detected!</h3>
+        <p id="emergencyModalMsg">Your symptoms may require immediate medical attention. Please call emergency services now.</p>
+        <div class="em-numbers">
+            <a href="tel:108" class="em-call-btn"><i class="fas fa-phone"></i> 108 Ambulance</a>
+            <a href="tel:112" class="em-call-btn" style="background:#f59e0b"><i class="fas fa-phone"></i> 112 Emergency</a>
+        </div>
+        <button class="em-dismiss" onclick="closeEmergencyModal()">I understand, close this</button>
+    </div>
+</div>
 
+<!-- ══ SYMPTOM CHECKER PANEL ══ -->
+<div class="sym-panel" id="symPanel">
+    <div class="sym-header">
+        <h5>🩺 Symptom Checker</h5>
+        <button class="icon-btn" onclick="toggleSymPanel()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="sym-body">
+        <div class="sym-tabs">
+            <button class="sym-tab active" onclick="switchSymTab('type',this)">
+                <i class="fas fa-keyboard"></i> Type Symptoms
+            </button>
+            <button class="sym-tab" onclick="switchSymTab('select',this)">
+                <i class="fas fa-check-square"></i> Select Symptoms
+            </button>
+        </div>
+
+        <!-- Tab 1: Type mode -->
+        <div class="sym-tabpanel active" id="tab-type">
+            <textarea class="sym-type-input" id="symTypeInput" rows="4"
+                placeholder="Describe your symptoms… e.g. fever, headache, body ache for 2 days&#10;অথবা বাংলায় লিখুন: জ্বর, মাথাব্যথা, গা ব্যথা&#10;या हिंदी में: बुखार, सिरदर्द, बदन दर्द"></textarea>
+        </div>
+
+        <!-- Tab 2: Checkbox mode -->
+        <div class="sym-tabpanel" id="tab-select">
+            <input type="text" class="sym-search" id="symSearch" placeholder="Search symptoms…" oninput="filterSymptoms()">
+            <div class="sym-checkbox-grid" id="symGrid"></div>
+            <div class="sym-selected-list">
+                <div class="sym-selected-label">Selected: <span id="symCount">0</span></div>
+                <div class="sym-selected-tags" id="symTags"></div>
+            </div>
+        </div>
+
+        <button class="sym-check-btn" id="symCheckBtn" onclick="runSymptomCheck()">
+            <i class="fas fa-search"></i> Check Symptoms
+        </button>
+        <div class="sym-results" id="symResults"></div>
+    </div>
+</div>
+
+<div class="app-shell">
+    <!-- ══ SIDEBAR ══ -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span><i class="fas fa-history" style="margin-right:8px;color:#4ade80"></i>Chat History</span>
+            <button class="icon-btn" onclick="toggleSidebar()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="sidebar-body" id="sidebarHistory">
+            <p style="color:#6b7280;font-size:13px;text-align:center;padding-top:20px">No history yet</p>
+        </div>
+        <div class="sidebar-footer">
+            <button class="clear-btn" onclick="clearHistory()">
+                <i class="fas fa-trash-alt" style="margin-right:5px"></i>Clear
+            </button>
+            <button class="pdf-btn" onclick="exportPDF()">
+                <i class="fas fa-file-pdf" style="margin-right:5px"></i>Export PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- ══ MAIN ══ -->
+    <div class="chat-main">
         <div class="chat-header">
             <div class="header-left">
+                <button class="icon-btn" onclick="toggleSidebar()" title="History"><i class="fas fa-bars"></i></button>
                 <img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="bot-avatar">
-
                 <div class="header-info">
                     <h4>Medical AI Assistant</h4>
-                    <p>Ask medical questions anytime</p>
+                    <p>English · বাংলা · हिन्दी</p>
                 </div>
             </div>
-
-            <div class="status">
-                <div class="status-dot"></div>
-                Online
+            <div class="header-right">
+                <button class="icon-btn" onclick="toggleSymPanel()" title="Symptom Checker" style="color:#4ade80;border-color:rgba(34,197,94,0.3)">
+                    <i class="fas fa-stethoscope"></i>
+                </button>
+                <div class="fs-controls">
+                    <button class="fs-btn" onclick="changeFont(-1)">A-</button>
+                    <span class="fs-label" id="fsLabel">15px</span>
+                    <button class="fs-btn" onclick="changeFont(1)">A+</button>
+                </div>
+                <div class="status"><div class="status-dot"></div>Online</div>
             </div>
+        </div>
+
+        <!-- Rate limit bar -->
+        <div class="rate-bar">
+            <span class="rate-label">Requests</span>
+            <div class="rate-track"><div class="rate-fill" id="rateFill" style="width:100%"></div></div>
+            <span class="rate-label" id="rateText">10 / 10</span>
         </div>
 
         <div id="messageFormeight" class="chat-body">
-
             <div class="message-row bot">
                 <div class="message-box">
-                    Hello 👋 I'm your AI medical assistant. How can I help you today?
+                    Hello 👋 I'm your AI medical assistant.<br>
+                    Ask me anything in <strong>English</strong>, <strong>বাংলা</strong>, or <strong>हिन्दी</strong>!<br>
+                    <small style="color:#9ca3af">Use the 🩺 button to check your symptoms.</small>
                     <span class="message-time">Now</span>
                 </div>
             </div>
-
         </div>
 
         <div class="chat-footer">
+            <div class="voice-hint" id="voiceHint">🎤 Click the mic to speak</div>
             <form id="messageArea" class="message-form">
-                <input
-                    type="text"
-                    id="text"
-                    name="msg"
-                    placeholder="Type your medical question..."
-                    autocomplete="off"
-                    class="message-input"
-                    required
-                />
-
-                <button type="submit" class="send-btn">
-                    <i class="fas fa-paper-plane"></i>
+                <input type="text" id="text" name="msg"
+                    placeholder="Type or speak your medical question…"
+                    autocomplete="off" class="message-input" required/>
+                <button type="button" class="voice-btn" id="voiceBtn">
+                    <i class="fas fa-microphone" id="voiceIcon"></i>
                 </button>
+                <button type="submit" class="send-btn"><i class="fas fa-paper-plane"></i></button>
             </form>
         </div>
-
     </div>
 </div>
 
 <script>
-    $(document).ready(function () {
+$(document).ready(function(){
 
-        function getCurrentTime() {
-            const date = new Date();
-            let hour = date.getHours();
-            let minute = date.getMinutes();
+/* ══ FONT SIZE ══ */
+let fontSize = parseInt(localStorage.getItem("medFontSize")||"15");
+applyFont();
+function applyFont(){
+    document.body.style.fontSize = fontSize+"px";
+    $("#fsLabel").text(fontSize+"px");
+    localStorage.setItem("medFontSize",fontSize);
+}
+window.changeFont = d => { fontSize=Math.min(22,Math.max(12,fontSize+d)); applyFont(); };
 
-            if (minute < 10) {
-                minute = "0" + minute;
-            }
 
-            return hour + ":" + minute;
+/* ══ SIDEBAR ══ */
+let sidebarOpen = window.innerWidth > 768;
+if(!sidebarOpen) $("#sidebar").addClass("collapsed");
+window.toggleSidebar = function(){
+    sidebarOpen=!sidebarOpen;
+    $("#sidebar").toggleClass("collapsed",!sidebarOpen);
+    if(sidebarOpen) loadSidebarHistory();
+};
+function loadSidebarHistory(){
+    $.get("/history",function(data){
+        const hist=data.history;
+        if(!hist||!hist.length){
+            $("#sidebarHistory").html('<p style="color:#6b7280;font-size:13px;text-align:center;padding-top:20px">No history yet</p>');
+            return;
         }
-
-        function scrollToBottom() {
-            const chatBody = document.getElementById("messageFormeight");
-            chatBody.scrollTop = chatBody.scrollHeight;
+        let html="";
+        for(let i=hist.length-1;i>=0;i--){
+            const h=hist[i];
+            const q=h.question.length>48?h.question.slice(0,45)+"…":h.question;
+            html+=`<div class="history-item" onclick="replayQ(${JSON.stringify(h.question)})">
+                <div class="q">${q}</div><div class="t">${h.time}</div></div>`;
         }
-
-        $("#messageArea").on("submit", function (event) {
-            event.preventDefault();
-
-            const rawText = $("#text").val();
-            const str_time = getCurrentTime();
-
-            if (rawText.trim() === "") {
-                return;
-            }
-
-            const userHtml = `
-                <div class="message-row user">
-                    <div class="message-box">
-                        ${rawText}
-                        <span class="message-time">${str_time}</span>
-                    </div>
-                </div>
-            `;
-
-            $("#text").val("");
-            $("#messageFormeight").append(userHtml);
-            scrollToBottom();
-
-            const typingHtml = `
-                <div class="message-row bot" id="typing-indicator">
-                    <div class="message-box">
-                        <div class="typing">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            $("#messageFormeight").append(typingHtml);
-            scrollToBottom();
-
-            $.ajax({
-                data: {
-                    msg: rawText,
-                },
-                type: "POST",
-                url: "/get",
-            }).done(function (data) {
-
-                $("#typing-indicator").remove();
-
-                const botHtml = `
-                    <div class="message-row bot">
-                        <div class="message-box">
-                            ${data}
-                            <span class="message-time">${str_time}</span>
-                        </div>
-                    </div>
-                `;
-
-                $("#messageFormeight").append(botHtml);
-                scrollToBottom();
-            });
-        });
+        $("#sidebarHistory").html(html);
     });
-</script>
+}
+window.replayQ = function(q){
+    $("#text").val(q);
+    if(window.innerWidth<=768){sidebarOpen=false;$("#sidebar").addClass("collapsed");}
+    $("#messageArea").submit();
+};
+window.clearHistory = function(){
+    if(!confirm("Clear all chat history?")) return;
+    $.post("/clear",function(){
+        $("#messageFormeight").html(`<div class="message-row bot"><div class="message-box">History cleared. Ask me anything! 👋<span class="message-time">${getTime()}</span></div></div>`);
+        $("#sidebarHistory").html('<p style="color:#6b7280;font-size:13px;text-align:center;padding-top:20px">No history yet</p>');
+    });
+};
 
+
+/* ══ RATE LIMIT BAR ══ */
+const RATE_MAX = 10;
+function updateRateBar(remaining){
+    const pct = (remaining/RATE_MAX)*100;
+    const fill = document.getElementById("rateFill");
+    fill.style.width = pct+"%";
+    fill.className = "rate-fill" + (pct<=30?" danger": pct<=60?" warn":"");
+    $("#rateText").text(remaining+" / "+RATE_MAX);
+}
+
+
+/* ══ VOICE INPUT ══ */
+let recognition=null,isRec=false;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){
+    recognition=new SR();
+    recognition.continuous=false; recognition.interimResults=true;
+    // recognition.lang="bn-BD,hi-IN,en-IN,en-US";
+    recognition.lang = "en-US";
+    recognition.onstart=()=>{
+        isRec=true;
+        $("#voiceBtn").addClass("recording");
+        $("#voiceIcon").attr("class","fas fa-stop");
+        $("#voiceHint").text("🔴 শুনছি / सुन रहा हूँ / Listening…");
+        $("#text").attr("placeholder","Listening…");
+    };
+    recognition.onresult=e=>{
+        let t="";
+        for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+        $("#text").val(t);
+    };
+    recognition.onend=()=>{
+        isRec=false;
+        $("#voiceBtn").removeClass("recording");
+        $("#voiceIcon").attr("class","fas fa-microphone");
+        $("#voiceHint").text("🎤 Click the mic to speak");
+        $("#text").attr("placeholder","Type or speak your medical question…");
+        if($("#text").val().trim()) setTimeout(()=>$("#messageArea").submit(),300);
+    };
+    //recognition.onerror=e=>{isRec=false;$("#voiceBtn").removeClass("recording");$("#voiceIcon").attr("class","fas fa-microphone");$("#voiceHint").text("⚠️ Mic error: "+e.error);};
+    recognition.onerror = (e) => {
+
+    isRec = false;
+
+    $("#voiceBtn").removeClass("recording");
+
+    $("#voiceIcon").attr("class", "fas fa-microphone");
+
+    $("#voiceHint").text("⚠️ Mic error: " + e.error);
+
+    console.log("SpeechRecognition Error:", e);
+
+};
+    // document.getElementById("voiceBtn").addEventListener("click",()=>isRec?recognition.stop():recognition.start());
+    document.getElementById("voiceBtn").addEventListener("click", async () => {
+
+    if (isRec) {
+        recognition.stop();
+        return;
+    }
+
+    try {
+
+        await navigator.mediaDevices.getUserMedia({
+            audio: true
+        });
+
+        recognition.start();
+
+    } catch (err) {
+
+        console.log("Mic Error:", err);
+
+        alert("Microphone access blocked");
+
+    }
+
+});
+}else{
+    $("#voiceBtn").css({opacity:.4,cursor:"not-allowed"});
+    $("#voiceHint").text("⚠️ Voice not supported — use Chrome");
+}
+
+
+/* ══ TTS ══ */
+let currentUtt=null;
+function speakText(text,btn){
+    if(!window.speechSynthesis) return;
+    if(currentUtt&&$(btn).hasClass("speaking")){speechSynthesis.cancel();currentUtt=null;$(btn).removeClass("speaking").html('<i class="fas fa-volume-up"></i> Listen');return;}
+    speechSynthesis.cancel();
+    const plain=text.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
+    const utt=new SpeechSynthesisUtterance(plain);
+    utt.rate=0.95; currentUtt=utt;
+    $(btn).addClass("speaking").html('<i class="fas fa-stop-circle"></i> Stop');
+    utt.onend=()=>{$(btn).removeClass("speaking").html('<i class="fas fa-volume-up"></i> Listen');currentUtt=null;};
+    speechSynthesis.speak(utt);
+}
+
+
+/* ══ EMERGENCY ══ */
+const EMERGENCY_KEYWORDS = [
+    "chest pain","heart attack","stroke","unconscious","not breathing","severe bleeding",
+    "seizure","overdose","poisoning","severe burn","broken bone","can't breathe",
+    "বুকে ব্যথা","হার্ট অ্যাটাক","শ্বাস নিতে পারছি না","অজ্ঞান","তীব্র রক্তক্ষরণ",
+    "सीने में दर्द","दिल का दौरा","सांस नहीं","बेहोश","गंभीर रक्तस्राव"
+];
+function checkEmergency(text){
+    const lower=text.toLowerCase();
+    return EMERGENCY_KEYWORDS.some(k=>lower.includes(k.toLowerCase()));
+}
+function showEmergencyModal(msg){
+    if(msg) $("#emergencyModalMsg").text(msg);
+    $("#emergencyModal").addClass("show");
+}
+window.closeEmergencyModal=()=>$("#emergencyModal").removeClass("show");
+function buildEmergencyCard(){
+    return `<div class="emergency-card">
+        <div class="ec-title">🚨 Emergency Services</div>
+        <div class="ec-numbers">
+            <a href="tel:108" class="ec-call"><i class="fas fa-phone"></i> 108 Ambulance</a>
+            <a href="tel:112" class="ec-call"><i class="fas fa-phone"></i> 112 Emergency</a>
+            <a href="tel:102" class="ec-call"><i class="fas fa-phone"></i> 102 Health</a>
+        </div>
+    </div>`;
+}
+
+
+/* ══ HELPERS ══ */
+function getTime(){
+    const d=new Date(); let h=d.getHours(),m=d.getMinutes();
+    return h+":"+(m<10?"0"+m:m);
+}
+function scrollBottom(){
+    const cb=document.getElementById("messageFormeight");
+    cb.scrollTop=cb.scrollHeight;
+}
+const diseaseKeywords=["diabetes","malaria","tuberculosis","tb","pneumonia","typhoid","dengue","cholera","asthma","cancer","hypertension","anemia","chickenpox","measles","jaundice","hepatitis","arthritis","migraine","eczema","psoriasis","appendicitis","kidney stone","fever","cold","flu","covid","coronavirus","ডায়াবেটিস","ম্যালেরিয়া","যক্ষ্মা","নিউমোনিয়া","ডেঙ্গু","হাঁপানি","ক্যান্সার","জ্বর","मधुमेह","मलेरिया","निमोनिया","डेंगू","अस्थमा","कैंसर","बुखार"];
+const bnToEn={"ডায়াবেটিস":"diabetes","ম্যালেরিয়া":"malaria","যক্ষ্মা":"tuberculosis","নিউমোনিয়া":"pneumonia","ডেঙ্গু":"dengue","হাঁপানি":"asthma","ক্যান্সার":"cancer","জ্বর":"fever","मधुमेह":"diabetes","मलेरिया":"malaria","निमोनिया":"pneumonia","डेंगू":"dengue","अस्थमा":"asthma","कैंसर":"cancer","बुखार":"fever"};
+function detectDisease(t){const l=t.toLowerCase();for(const k of diseaseKeywords)if(l.includes(k.toLowerCase()))return bnToEn[k]||k;return null;}
+
+function formatAnswer(text){
+    const lines=text.split(/\n/);let html="",inList=false;
+    for(let line of lines){
+        line=line.trim();if(!line){if(inList){html+="</ul>";inList=false;}continue;}
+        const isH=/^(Medicines|Treatment|Symptoms|Causes|Diagnosis|Prevention|ওষুধ|চিকিৎসা|লক্ষণ|কারণ|दवाइयाँ|लक्षण)[:\s]/i.test(line)||/^#+\s/.test(line);
+        if(isH){if(inList){html+="</ul>";inList=false;}html+=`<div class="section-title">📌 ${line.replace(/^#+\s/,"").replace(/:$/,"")}</div>`;continue;}
+        if(/^[-•*]\s/.test(line)||/^\d+\.\s/.test(line)){if(!inList){html+="<ul>";inList=true;}html+=`<li>${line.replace(/^[-•*\d.]\s+/,"")}</li>`;continue;}
+        if(!html||(!inList&&!html.includes("section-title"))){if(inList){html+="</ul>";inList=false;}html+=`<div class="summary-line">${line}</div>`;continue;}
+        if(inList){html+="</ul>";inList=false;}
+        html+=`<p style="margin:4px 0">${line}</p>`;
+    }
+    if(inList) html+="</ul>";
+    if(!html.includes("<ul>")&&!html.includes("section-title")) return `<span>${text}</span>`;
+    return html;
+}
+
+const suggestionMap={
+    "diabetes":["Foods to avoid?","What are symptoms?","Best medicines?"],
+    "fever":["Reduce fever at home?","When to see a doctor?","Medicines for fever?"],
+    "malaria":["How is malaria spread?","Malaria treatment?","Prevention tips?"],
+    "tuberculosis":["Is TB contagious?","TB treatment duration?","TB symptoms?"],
+    "asthma":["Asthma triggers?","Inhaler usage?","Home remedies?"],
+    "default":["Tell me more","What medicines are needed?","How to prevent this?"]
+};
+function getSuggestions(disease,text){
+    if(disease&&suggestionMap[disease]) return suggestionMap[disease];
+    if(/medicine|ওষুধ|दवा/i.test(text)) return ["Side effects?","Dosage?","Alternatives?"];
+    return suggestionMap["default"];
+}
+
+function fetchDiseaseImage(disease,imgId){
+    const term=encodeURIComponent(disease);
+    fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${term}&prop=pageimages&format=json&pithumbsize=400&origin=*`)
+        .then(r=>r.json()).then(json=>{
+            const pages=json.query.pages,page=pages[Object.keys(pages)[0]],el=document.getElementById(imgId);
+            if(!el) return;
+            if(page&&page.thumbnail){
+                el.innerHTML=`<img src="${page.thumbnail.source}" alt="${disease}"><div class="img-caption">🖼 ${disease.charAt(0).toUpperCase()+disease.slice(1)} — Wikipedia</div>`;
+            }else{
+                fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${term}+disease&format=json&origin=*`)
+                    .then(r=>r.json()).then(j=>{
+                        const hits=j.query&&j.query.search;
+                        if(!hits||!hits.length){const e2=document.getElementById(imgId);if(e2)e2.style.display="none";return;}
+                        return fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(hits[0].title)}&prop=pageimages&format=json&pithumbsize=400&origin=*`);
+                    }).then(r=>r&&r.json()).then(j=>{
+                        const el2=document.getElementById(imgId);if(!el2||!j){if(el2)el2.style.display="none";return;}
+                        const pg=j.query.pages[Object.keys(j.query.pages)[0]];
+                        if(pg&&pg.thumbnail)el2.innerHTML=`<img src="${pg.thumbnail.source}" alt="${disease}"><div class="img-caption">🖼 ${disease.charAt(0).toUpperCase()+disease.slice(1)} — Wikipedia</div>`;
+                        else el2.style.display="none";
+                    }).catch(()=>{const e=document.getElementById(imgId);if(e)e.style.display="none";});
+            }
+        }).catch(()=>{const e=document.getElementById(imgId);if(e)e.style.display="none";});
+}
+
+
+/* ══ FORM SUBMIT ══ */
+let lastQuestion="",lastAnswer="";
+
+$("#messageArea").on("submit",function(e){
+    e.preventDefault();
+    const raw=$("#text").val().trim();
+    if(!raw) return;
+    const t=getTime();
+    $("#text").val("");
+
+    // Check emergency keywords before sending
+    if(checkEmergency(raw)){
+        showEmergencyModal("Your symptoms may be serious. Please call emergency services immediately.");
+    }
+
+    $("#messageFormeight").append(`<div class="message-row user"><div class="message-box">${raw}<span class="message-time">${t}</span></div></div>`);
+    scrollBottom();
+    $("#messageFormeight").append(`<div class="message-row bot" id="typing-indicator"><div class="message-box"><div class="typing"><span></span><span></span><span></span></div></div></div>`);
+    scrollBottom();
+
+    $.ajax({data:{msg:raw},type:"POST",url:"/get"}).done(function(resp){
+        $("#typing-indicator").remove();
+
+        // Handle rate limit response (429 returns JSON)
+        if(resp.error==="rate_limited"){
+            $("#messageFormeight").append(`<div class="message-row bot"><div class="message-box" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.08);">⏳ <strong>Too many requests.</strong> Please wait ${resp.retry_after} seconds.<span class="message-time">${t}</span></div></div>`);
+            scrollBottom(); return;
+        }
+
+        const data=resp.answer||resp;
+        lastQuestion=raw; lastAnswer=typeof data==="string"?data:JSON.stringify(data);
+
+        updateRateBar(resp.remaining!==undefined?resp.remaining:RATE_MAX);
+
+        const formatted=formatAnswer(lastAnswer);
+        const disease=detectDisease(raw)||detectDisease(lastAnswer);
+        const msgId="msg-"+Date.now();
+
+        let imageHtml="";
+        if(disease){
+            const imgId="dimg-"+Date.now();
+            imageHtml=`<div class="disease-image-wrap" id="${imgId}"><div class="img-loading">⏳ Loading image…</div></div>`;
+            setTimeout(()=>fetchDiseaseImage(disease,imgId),100);
+        }
+
+        // Emergency card in chat if answer mentions emergency
+        let emergencyHtml="";
+        if(checkEmergency(lastAnswer)||lastAnswer.toLowerCase().includes("emergency")||lastAnswer.toLowerCase().includes("immediately")){
+            emergencyHtml=buildEmergencyCard();
+        }
+
+        const chips=getSuggestions(disease,lastAnswer).map(s=>`<span class="suggestion-chip" onclick="askSug('${s.replace(/'/g,"&#39;")}')">🔍 ${s}</span>`).join("");
+
+        $("#messageFormeight").append(`
+            <div class="message-row bot" id="${msgId}">
+                <div class="message-box">
+                    ${formatted}
+                    ${imageHtml}
+                    ${emergencyHtml}
+                    <div class="suggestions-row">${chips}</div>
+                    <div class="feedback-row">
+                        <button class="fb-btn" onclick="doFeedback('up','${msgId}',this)">👍 Helpful</button>
+                        <button class="fb-btn" onclick="doFeedback('down','${msgId}',this)">👎 Not helpful</button>
+                        <div class="action-btns">
+                            <button class="act-btn" onclick="copyMsg('${msgId}')"><i class="fas fa-copy"></i> Copy</button>
+                            <button class="act-btn" id="tts-${msgId}" onclick="speakMsg('${msgId}',this)"><i class="fas fa-volume-up"></i> Listen</button>
+                        </div>
+                    </div>
+                    <span class="message-time">${t}</span>
+                </div>
+            </div>`);
+        scrollBottom();
+        if(sidebarOpen) loadSidebarHistory();
+    }).fail(function(xhr){
+        $("#typing-indicator").remove();
+        if(xhr.status===429){
+            const resp=xhr.responseJSON||{};
+            updateRateBar(0);
+            $("#messageFormeight").append(`<div class="message-row bot"><div class="message-box" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.08);">⏳ <strong>Rate limit reached.</strong> Please wait ${resp.retry_after||60} seconds before asking again.<span class="message-time">${t}</span></div></div>`);
+            scrollBottom();
+        }
+    });
+});
+
+window.askSug    = q=>{$("#text").val(q);$("#messageArea").submit();};
+window.doFeedback= (vote,id,btn)=>{
+    $("#"+id+" .feedback-row .fb-btn").removeClass("voted-up voted-down");
+    $(btn).addClass(vote==="up"?"voted-up":"voted-down");
+    $.ajax({url:"/feedback",type:"POST",contentType:"application/json",data:JSON.stringify({question:lastQuestion,answer:lastAnswer,vote})});
+};
+window.copyMsg   = id=>{
+    const t=(document.querySelector("#"+id+" .message-box")||{}).innerText||"";
+    navigator.clipboard.writeText(t).then(()=>{
+        const b=document.querySelector("#"+id+" .act-btn");
+        const o=b.innerHTML; b.innerHTML='<i class="fas fa-check"></i> Copied!';
+        setTimeout(()=>b.innerHTML=o,1800);
+    });
+};
+window.speakMsg  = (id,btn)=>speakText(document.querySelector("#"+id+" .message-box").innerHTML,btn);
+
+
+/* ══ PDF EXPORT ══ */
+window.exportPDF = function(){
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+    const W=210, margin=15, maxW=W-margin*2;
+    let y=margin;
+
+    // Header
+    doc.setFillColor(15,23,42); doc.rect(0,0,W,28,"F");
+    doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont("helvetica","bold");
+    doc.text("Medical AI Assistant — Chat Export",margin,18);
+    doc.setFontSize(9); doc.setFont("helvetica","normal");
+    doc.text("Generated: "+new Date().toLocaleString(),margin,24);
+    y=36;
+
+    // Chat messages
+    const rows=document.querySelectorAll(".message-row");
+    rows.forEach(row=>{
+        const isUser=row.classList.contains("user");
+        const box=row.querySelector(".message-box");
+        if(!box) return;
+        // Skip typing indicator
+        if(box.querySelector(".typing")) return;
+        // Skip feedback/suggestion rows — get only text
+        const clone=box.cloneNode(true);
+        clone.querySelectorAll(".feedback-row,.suggestions-row,.disease-image-wrap,.emergency-card,.message-time").forEach(el=>el.remove());
+        const text=(clone.innerText||clone.textContent||"").trim();
+        if(!text) return;
+
+        const timeEl=box.querySelector(".message-time");
+        const timeStr=timeEl?timeEl.textContent:"";
+
+        // Role label
+        doc.setFontSize(9); doc.setFont("helvetica","bold");
+        doc.setTextColor(isUser?37:34, isUser?99:197, isUser?235:94);
+        doc.text((isUser?"You":"AI Assistant")+(timeStr?" · "+timeStr:""), margin, y);
+        y+=5;
+
+        // Message text
+        doc.setFontSize(11); doc.setFont("helvetica","normal");
+        doc.setTextColor(30,30,30);
+        const lines=doc.splitTextToSize(text,maxW);
+
+        // Box background
+        const boxH=lines.length*5+6;
+        doc.setFillColor(isUser?239:248, isUser?246:250, isUser?255:252);
+        doc.roundedRect(margin,y-1,maxW,boxH,2,2,"F");
+        doc.text(lines,margin+3,y+4);
+        y+=boxH+4;
+
+        // Disease image (try to embed)
+        if(!isUser){
+            const img=box.querySelector(".disease-image-wrap img");
+            if(img&&img.src&&img.complete){
+                try{
+                    const canvas=document.createElement("canvas");
+                    canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+                    canvas.getContext("2d").drawImage(img,0,0);
+                    const imgData=canvas.toDataURL("image/jpeg",0.7);
+                    const imgW=Math.min(60,maxW/3), imgH=imgW*(img.naturalHeight/img.naturalWidth);
+                    if(y+imgH+4>280){doc.addPage();y=margin;}
+                    doc.addImage(imgData,"JPEG",margin,y,imgW,imgH);
+                    doc.setFontSize(8); doc.setTextColor(120,120,120);
+                    doc.text(img.alt||"Disease image",margin,y+imgH+3);
+                    y+=imgH+8;
+                }catch(err){}
+            }
+        }
+
+        if(y>265){doc.addPage();y=margin;}
+    });
+
+    // Disclaimer footer
+    if(y>250){doc.addPage();y=margin;}
+    y+=6;
+    doc.setDrawColor(200,200,200); doc.line(margin,y,W-margin,y); y+=6;
+    doc.setFontSize(8); doc.setTextColor(120,120,120); doc.setFont("helvetica","italic");
+    const disc="⚠ DISCLAIMER: This AI assistant provides general medical information only. It is NOT a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider for medical concerns. In case of emergency, call 108 (Ambulance) or 112.";
+    doc.text(doc.splitTextToSize(disc,maxW),margin,y);
+
+    doc.save("medical-chat-"+Date.now()+".pdf");
+};
+
+
+/* ══ SYMPTOM CHECKER ══ */
+let symPanelOpen=false;
+window.toggleSymPanel=function(){
+    symPanelOpen=!symPanelOpen;
+    $("#symPanel").toggleClass("open",symPanelOpen);
+};
+
+window.switchSymTab=function(tab,btn){
+    $(".sym-tab").removeClass("active"); $(btn).addClass("active");
+    $(".sym-tabpanel").removeClass("active");
+    $("#tab-"+tab).addClass("active");
+};
+
+// All common symptoms list
+const ALL_SYMPTOMS=[
+    "Fever","Headache","Cough","Sore throat","Runny nose","Fatigue","Body ache",
+    "Nausea","Vomiting","Diarrhea","Stomach pain","Chest pain","Shortness of breath",
+    "Dizziness","Rash","Itching","Joint pain","Back pain","Loss of appetite",
+    "Weight loss","Sweating","Chills","Swelling","Bleeding","Vision changes",
+    "Hearing loss","Numbness","Weakness","Confusion","Fainting"
+];
+let selectedSymptoms=new Set();
+
+function renderSymGrid(filter=""){
+    const grid=document.getElementById("symGrid");
+    const filtered=ALL_SYMPTOMS.filter(s=>s.toLowerCase().includes(filter.toLowerCase()));
+    grid.innerHTML=filtered.map(s=>{
+        const sel=selectedSymptoms.has(s)?"selected":"";
+        return `<span class="sym-chip ${sel}" onclick="toggleSymptom('${s}',this)">${s}</span>`;
+    }).join("");
+}
+window.filterSymptoms=()=>renderSymGrid(document.getElementById("symSearch").value);
+
+window.toggleSymptom=function(sym,el){
+    if(selectedSymptoms.has(sym)){selectedSymptoms.delete(sym);el.classList.remove("selected");}
+    else{selectedSymptoms.add(sym);el.classList.add("selected");}
+    updateSymTags();
+};
+function updateSymTags(){
+    $("#symCount").text(selectedSymptoms.size);
+    const tags=[...selectedSymptoms].map(s=>`<span class="sym-tag" onclick="removeSymptom('${s}')" title="Remove">${s} ✕</span>`).join("");
+    $("#symTags").html(tags||'<span style="color:#6b7280;font-size:12px">None selected</span>');
+}
+window.removeSymptom=function(s){
+    selectedSymptoms.delete(s);
+    renderSymGrid(document.getElementById("symSearch").value);
+    updateSymTags();
+};
+
+window.runSymptomCheck=function(){
+    // Get symptoms from active tab
+    const activeTab=document.querySelector(".sym-tabpanel.active").id;
+    let symptoms="";
+    if(activeTab==="tab-type"){
+        symptoms=document.getElementById("symTypeInput").value.trim();
+    }else{
+        symptoms=[...selectedSymptoms].join(", ");
+    }
+    if(!symptoms){alert("Please enter or select at least one symptom.");return;}
+
+    const btn=document.getElementById("symCheckBtn");
+    btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Checking…';
+    $("#symResults").html('<div class="sym-loading"><i class="fas fa-spinner fa-spin"></i><br>Analyzing symptoms…</div>');
+
+    $.ajax({
+        url:"/symptom-check", type:"POST",
+        contentType:"application/json",
+        data:JSON.stringify({symptoms})
+    }).done(function(resp){
+        btn.disabled=false; btn.innerHTML='<i class="fas fa-search"></i> Check Symptoms';
+
+        if(resp.error){
+            $("#symResults").html(`<p style="color:#f87171;font-size:13px">Error: ${resp.error}</p>`);
+            return;
+        }
+
+        if(resp.emergency){
+            showEmergencyModal("Symptoms suggest a possible emergency. Please call emergency services immediately.");
+        }
+
+        const diseases=resp.diseases||[];
+        if(!diseases.length){
+            $("#symResults").html('<p style="color:#9ca3af;font-size:13px;text-align:center;padding:10px">No specific conditions identified. Consult a doctor.</p>');
+            return;
+        }
+
+        let html="";
+        diseases.forEach(d=>{
+            const sev=(d.severity||"").toLowerCase();
+            const sevClass=sev.includes("severe")?"sev-severe":sev.includes("moderate")?"sev-moderate":"sev-mild";
+            const actions=(d.actions||[]).map(a=>`<li>${a}</li>`).join("");
+            html+=`<div class="sym-disease-card">
+                <div class="dc-name">${d.name||"Unknown"}</div>
+                <span class="sev-badge ${sevClass}">${d.severity||"Unknown"}</span>
+                <div class="dc-desc">${d.description||""}</div>
+                <ul class="dc-actions">${actions}</ul>
+                <button class="suggestion-chip" style="margin-top:8px;border:none" onclick="askAboutDisease('${(d.name||"").replace(/'/g,"&#39;")}')">
+                    Ask about ${d.name} →
+                </button>
+            </div>`;
+        });
+        // Disclaimer
+        html+=`<p style="color:#6b7280;font-size:11px;margin-top:10px;line-height:1.5">⚠️ This is for informational purposes only. Always consult a qualified doctor for diagnosis.</p>`;
+        $("#symResults").html(html);
+    }).fail(function(xhr){
+        btn.disabled=false; btn.innerHTML='<i class="fas fa-search"></i> Check Symptoms';
+        if(xhr.status===429) $("#symResults").html('<p style="color:#f59e0b;font-size:13px">⏳ Too many requests. Please wait a moment.</p>');
+        else $("#symResults").html('<p style="color:#f87171;font-size:13px">Something went wrong. Please try again.</p>');
+    });
+};
+
+window.askAboutDisease=function(name){
+    toggleSymPanel();
+    $("#text").val("Tell me about "+name+": symptoms, causes, and treatment");
+    $("#messageArea").submit();
+};
+
+// Initialize symptom grid
+renderSymGrid();
+updateSymTags();
+
+}); // end document.ready
+</script>
 </body>
 </html>
-```
